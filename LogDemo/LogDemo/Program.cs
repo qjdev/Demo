@@ -17,13 +17,26 @@ namespace LogDemo
 {
     class Program
     {
-        private static ILog _log4netKeepFalse;
-        private static ILog _log4netKeepTrue;
+        private static ILog _log4NetKeepFalse;
+        private static ILog _log4NetKeepTrue;
         private static Logger _nlogKeppFalse;
         private static Logger _nlogKeppTrue;
 
         static void Main(string[] args)
         {
+            var log4NetPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "log4net");
+            var nlogPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "nlog");
+
+            if (Directory.Exists(log4NetPath))
+            {
+                Directory.Delete(log4NetPath, true);
+            }
+
+            if (Directory.Exists(nlogPath))
+            {
+                Directory.Delete(nlogPath ,true);
+            }
+
             InitLog4Net();
             InitNLog();
 
@@ -32,7 +45,7 @@ namespace LogDemo
 
             for (int i = 0; i < 10000; i++)
             {
-                _log4netKeepFalse.Debug("log4net测试");
+                _log4NetKeepFalse.Debug("log测试");
             }
 
             sw.Stop();
@@ -42,22 +55,22 @@ namespace LogDemo
 
             for (int i = 0; i < 10000; i++)
             {
-                _nlogKeppFalse.Debug("Nlog测试");
+                _nlogKeppFalse.Debug("log测试");
             }
 
             sw.Stop();
             Console.WriteLine("Nlog无锁日志循环10000次，总耗时：" + sw.ElapsedMilliseconds);
 
-            //初始化300个线程备用
-            Parallel.For(0, 200, (i) => Thread.Sleep(1000));
+            //初始化200个线程备用(线程池热身)
+            Parallel.For(0, 200, i => Thread.Sleep(100));
 
             sw.Restart();
 
-            Parallel.For(0, 100, (i) =>
+            Parallel.For(0, 100, i =>
             {
                 for (int j = 0; j < 100; j++)
                 {
-                    _log4netKeepFalse.Debug("log4net测试");
+                    _log4NetKeepFalse.Debug("log测试");
                 }
             });
 
@@ -66,11 +79,11 @@ namespace LogDemo
 
             sw.Restart();
 
-            Parallel.For(0, 100, (i) =>
+            Parallel.For(0, 100, i =>
             {
                 for (int j = 0; j < 100; j++)
                 {
-                    _nlogKeppFalse.Debug("Nlog测试");
+                    _nlogKeppFalse.Debug("log测试");
                 }
             });
 
@@ -81,7 +94,7 @@ namespace LogDemo
 
             for (int i = 0; i < 10000; i++)
             {
-                _log4netKeepTrue.Debug("log4net测试");
+                _log4NetKeepTrue.Debug("log测试");
             }
 
             sw.Stop();
@@ -91,22 +104,22 @@ namespace LogDemo
 
             for (int i = 0; i < 10000; i++)
             {
-                _nlogKeppTrue.Debug("Nlog测试");
+                _nlogKeppTrue.Debug("log测试");
             }
 
             sw.Stop();
             Console.WriteLine("Nlog独锁日志循环10000次，总耗时：" + sw.ElapsedMilliseconds);
 
-            //初始化300个线程备用
-            Parallel.For(0, 200, (i) => Thread.Sleep(1000));
+            //初始化200个线程备用(线程池热身)
+            Parallel.For(0, 200, i => Thread.Sleep(1000));
 
             sw.Restart();
 
-            Parallel.For(0, 100, (i) =>
+            Parallel.For(0, 100, i =>
             {
                 for (int j = 0; j < 100; j++)
                 {
-                    _log4netKeepTrue.Debug("log4net测试");
+                    _log4NetKeepTrue.Debug("log测试");
                 }
             });
 
@@ -115,16 +128,39 @@ namespace LogDemo
 
             sw.Restart();
 
-            Parallel.For(0, 100, (i) =>
+            Parallel.For(0, 100, i =>
             {
                 for (int j = 0; j < 100; j++)
                 {
-                    _nlogKeppTrue.Debug("Nlog测试");
+                    _nlogKeppTrue.Debug("log测试");
                 }
             });
 
             sw.Stop();
             Console.WriteLine("Nlog独锁日志并行循环，总耗时：" + sw.ElapsedMilliseconds);
+            Console.WriteLine("统计输出日志文件大小：");
+
+            var log4NetFiles = Directory.GetFiles(log4NetPath);
+            var log4NetSum = 0L;
+            foreach (var log4NetFile in log4NetFiles)
+            {
+                var f = new FileInfo(log4NetFile);
+                log4NetSum += f.Length;
+            }
+
+            Console.WriteLine($"log4Net共{log4NetFiles.Length}个文件，共{log4NetSum / 1024}Kb");
+
+            var nlogFiles = Directory.GetFiles(nlogPath);
+            var nlogSum = 0L;
+            foreach (var nlogFile in nlogFiles)
+            {
+                var f = new FileInfo(nlogFile);
+                nlogSum += f.Length;
+            }
+
+            Console.WriteLine($"nlog共{nlogFiles.Length}个文件，共{nlogSum / 1024}Kb");
+
+            Console.WriteLine("按任意键结束");
 
             Console.ReadKey();
         }
@@ -133,8 +169,8 @@ namespace LogDemo
         {
             XmlConfigurator.ConfigureAndWatch(
                 new FileInfo(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "log4net.config")));
-            _log4netKeepFalse = LogManager.GetLogger("keepfalse");
-            _log4netKeepTrue = LogManager.GetLogger("keeptrue");
+            _log4NetKeepFalse = LogManager.GetLogger("keepfalse");
+            _log4NetKeepTrue = LogManager.GetLogger("keeptrue");
         }
 
         private static void InitNLog()
